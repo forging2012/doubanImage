@@ -26,13 +26,14 @@ func GetUrl(url string) []byte {
 	return data
 }
 
-func getImage(image_url string) {
+func getImage(image_url string, k string) {
 	data := GetUrl(image_url)
 	body := string(data)
 	part := regexp.MustCompile("https://(.*).doubanio.com/view/group_topic/large/public/(.*).jpg")
 	match := part.FindAllString(body, -1)
 	for _, value := range match {
-		submit_url := "http://btlet.com/api/1/upload/?key=4127f561fb9a3dbc4204d298034382f4&source=" + url.QueryEscape(value)
+		submit_url := "http://btlet.com/api/1/upload/?key=" + k + "&source=" + url.QueryEscape(value)
+		fmt.Println(submit_url)
 		return_json := GetUrl(submit_url)
 		res := make(map[string]interface{})
 		json.Unmarshal(return_json, &res)
@@ -40,7 +41,7 @@ func getImage(image_url string) {
 	}
 }
 
-func getGroupList(target_url string) {
+func getGroupList(target_url string, k string) {
 	fmt.Printf("Begin Url : %s\n", target_url)
 	doc, err := goquery.NewDocument(target_url)
 	if err != nil {
@@ -52,7 +53,7 @@ func getGroupList(target_url string) {
 		// For each item found, get the band and title
 		href, IsExist := s.Attr("href")
 		if IsExist {
-			getImage(href)
+			getImage(href, k)
 		}
 	})
 	wg.Done()
@@ -61,12 +62,13 @@ func getGroupList(target_url string) {
 var wg sync.WaitGroup
 
 func main() {
+	k := flag.String("k", "laoji.org", "Chevereto Key")
 	endStartInt := flag.Int("e", 100, "End Start Int Value")
 	defaultUrl := flag.String("u", "https://www.douban.com/group/meituikong/discussion?start=", "Group Url")
 	flag.Parse()
 	for i := 0; i < *endStartInt; i = i + 25 {
 		wg.Add(1)
-		go getGroupList(*defaultUrl + strconv.Itoa(i))
+		go getGroupList(*defaultUrl+strconv.Itoa(i), *k)
 		time.Sleep(3e9)
 	}
 	wg.Wait()
