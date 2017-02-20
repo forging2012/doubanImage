@@ -16,28 +16,47 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func GetUrl(url string) []byte {
+func GetUrl(url string) ([]byte, error) {
 	ret, err := http.Get(url)
 	if err != nil {
-		log.Println(url)
+		return nil, err
 	}
 	body := ret.Body
-	data, _ := ioutil.ReadAll(body)
-	return data
+	data, err := ioutil.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+	return data, err
 }
 
 func getImage(image_url string, k string) {
-	data := GetUrl(image_url)
+	data, err := GetUrl(image_url)
+	if err != nil {
+		log.Println(err)
+	}
 	body := string(data)
 	part := regexp.MustCompile("https://(.*).doubanio.com/view/group_topic/large/public/(.*).jpg")
 	match := part.FindAllString(body, -1)
 	for _, value := range match {
-		submit_url := "http://btlet.com/api/1/upload/?key=" + k + "&source=" + url.QueryEscape(value)
-		fmt.Println(submit_url)
-		return_json := GetUrl(submit_url)
+		submit_url := "http://788to.com/api/1/upload/?key=" + k + "&source=" + url.QueryEscape(value)
+		//fmt.Println(submit_url)
+		return_json, err := GetUrl(submit_url)
+		if err != nil {
+			log.Println(err)
+		}
 		res := make(map[string]interface{})
 		json.Unmarshal(return_json, &res)
-		log.Printf("%s -> %v \n", value, res["status_code"])
+		if err != nil {
+			log.Println(err)
+		} else {
+			if res["status_code"].(float64) == 400 {
+				myError := res["error"].(map[string]interface{})
+				log.Printf("%s -> %v -> %v \n", value, res["status_code"], myError["message"])
+			} else {
+				log.Printf("%s -> %v \n", value, res["status_code"])
+			}
+		}
+		time.Sleep(3 * time.Second)
 	}
 }
 
@@ -45,8 +64,7 @@ func getGroupList(target_url string, k string) {
 	fmt.Printf("Begin Url : %s\n", target_url)
 	doc, err := goquery.NewDocument(target_url)
 	if err != nil {
-		panic(err)
-		log.Fatal(err)
+		log.Println(err)
 	}
 	// Find the review items
 	doc.Find("td.title a").Each(func(i int, s *goquery.Selection) {
@@ -69,7 +87,6 @@ func main() {
 	for i := 0; i < *endStartInt; i = i + 25 {
 		wg.Add(1)
 		go getGroupList(*defaultUrl+strconv.Itoa(i), *k)
-		time.Sleep(3e9)
 	}
 	wg.Wait()
 }
