@@ -55,46 +55,49 @@ func getImage(image_url string, k string) {
 
 			if resNum == 0 {
 				submit_url := "http://788to.com/api/1/upload/?key=" + k + "&source=" + url.QueryEscape(value)
-				//fmt.Println(submit_url)
 				return_json, err := GetUrl(submit_url)
 				if err != nil {
 					log.Println(err)
 				}
 				res := make(map[string]interface{})
-				json.Unmarshal(return_json, &res)
+				err = json.Unmarshal(return_json, &res)
 				if err != nil {
 					log.Println(err)
+					return
+				}
+				if res["status_code"].(float64) == 200 {
+					log.Printf("%s -> %v \n", value, res["status_code"])
 				} else {
-					log.Println(res["status_code"])
-					if res["status_code"].(float64) == 400 {
-						myError := res["error"].(map[string]interface{})
-						log.Printf("%s -> %v -> %v \n", value, res["status_code"], myError["message"])
-					} else {
-						log.Printf("%s -> %v \n", value, res["status_code"])
-					}
+					myError := res["error"].(map[string]interface{})
+					log.Printf("%s -> %v -> %v \n", value, res["status_code"], myError["message"])
 				}
 			} else {
 				log.Println(value + " -> Skip the same image.")
 			}
 
 			time.Sleep(3 * time.Second)
+		} else {
+			log.Println("Image url error : " + image_url)
+			return
 		}
 	})
 }
 
 func getGroupList(target_url string, k string) {
-	fmt.Printf("Begin Url : %s\n", target_url)
+	fmt.Printf("Begin url : %s\n", target_url)
 	doc, err := goquery.NewDocument(target_url)
 	if err != nil {
-		log.Println(err)
-		return
+		panic(err)
 	}
-	// Find the review items
+
+	// Find the items
 	doc.Find("td.title a").Each(func(i int, s *goquery.Selection) {
 		// For each item found, get the band and title
 		href, IsExist := s.Attr("href")
 		if IsExist {
 			getImage(href, k)
+		} else {
+			log.Println("List href null : " + target_url)
 		}
 	})
 	wg.Done()
